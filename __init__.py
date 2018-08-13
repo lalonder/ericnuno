@@ -1,5 +1,6 @@
 import paramiko
 import time
+import os
 
 def ssh_connect(device_ip):
     print("Connecting to: " + device_ip)
@@ -18,12 +19,12 @@ def ssh_connect(device_ip):
     return client, channel
 
 
-def esend(command, channel):
+def psend(command, channel):
 
     channel.send(command)
 
 
-def ewait(waitstr, channel, tout=0):
+def pwait(waitstr, channel, tout=0):
     startTime = int(time.time())
     stroutput = ''
     while waitstr not in stroutput:
@@ -47,3 +48,78 @@ def ewait(waitstr, channel, tout=0):
                 return stroutput
 
     return stroutput
+
+def twait(phrase, tn, tout = -1, logging = 'off', rcontent = False):
+
+    # Adding code to allow lists for phrase
+    finalcontent = ' '
+
+    #This is the time of the epoch
+    startTime = int(time.time())
+    while True:
+        # This is the current time
+        currentTime = int(time.time())
+        if tout != -1:
+
+            # This is the time since the start of this loop
+            # if it exceeds the timeout value passed to it
+            # then exit with a return of 0
+            if (currentTime - startTime) > tout:
+                if logging == 'on':
+                    #Adding the -e-e-> to differentiate from device output
+                    print('-e-e->It has been ' + str(tout) +  ' seconds. Timeout!')
+                if rcontent == False:
+                    return 0
+                else:
+                    return 0, finalcontent
+        # Eager reading back from the device
+        content = (tn.read_very_eager().decode().strip())
+
+        if content.strip() != '':
+            finalcontent += content
+        # if the returned content isn't blank. This stops
+        # it from spamming new line characters
+        if content.strip() != '':
+            print (content, end='')
+        # content was found! Return a 1 for success
+        if type(phrase) is str:
+            if phrase in content:
+                if rcontent == False:
+                    return 1
+                else:
+                    return 1, finalcontent
+
+        if type(phrase) is list:
+
+            count = 1
+            for p in phrase:
+                if p in content:
+
+                    if rcontent == False:
+                        return count
+                    else:
+                        return count, finalcontent
+                count+=1
+
+def tsend(phrase, tn):
+
+    #Sends the phrase that was passed to it as bytes
+    tn.write(phrase.encode())
+
+    return
+
+def all_files(parentdir, extensions=[]):
+    TotalFiles = []
+    if extensions == []:
+        for root, directories, filenames in os.walk(parentdir):
+            for filename in filenames:
+                TotalFiles.append(os.path.join(root, filename))
+
+    elif extensions != []:
+        for root, directories, filenames in os.walk(parentdir):
+            for filename in filenames:
+                for ext in extensions:
+                    if ext in os.path.join(root, filename):
+                        TotalFiles.append(os.path.join(root, filename))
+
+    return TotalFiles
