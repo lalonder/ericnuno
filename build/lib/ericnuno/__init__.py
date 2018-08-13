@@ -1,6 +1,22 @@
 import paramiko
 import time
 import os
+import subprocess
+import telnetlib
+
+
+def ping(hostname, n=3):
+    output = subprocess.run(["ping", hostname, "-n", n], stdout=subprocess.PIPE)
+    result = output.stdout.decode()
+
+    #and then check the response...
+    if 'Reply from ' + hostname + ': bytes=' in result:
+        return True
+    elif hostname.count('.') != 3:
+        if ': bytes=' in result and 'Reply from ' in result:
+            return True
+    else:
+        return False
 
 def ssh_connect(device_ip):
     print("Connecting to: " + device_ip)

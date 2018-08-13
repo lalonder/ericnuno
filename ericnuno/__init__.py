@@ -5,8 +5,8 @@ import subprocess
 import telnetlib
 
 
-def ping(hostname):
-    output = subprocess.run(["ping", hostname, "-n","3"], stdout=subprocess.PIPE)
+def ping(hostname, n=3):
+    output = subprocess.run(["ping", hostname, "-n", n], stdout=subprocess.PIPE)
     result = output.stdout.decode()
 
     #and then check the response...
