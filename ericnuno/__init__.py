@@ -12,6 +12,9 @@ def ping(hostname):
     #and then check the response...
     if 'Reply from ' + hostname + ': bytes=' in result:
         return True
+    elif hostname.count('.') != 3:
+        if ': bytes=' in result and 'Reply from ' in result:
+            return True
     else:
         return False
 
