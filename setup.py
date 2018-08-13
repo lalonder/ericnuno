@@ -1,3 +1,4 @@
+import setuptools
 from setuptools import setup
 
 setup(name='ericnuno',
@@ -6,6 +7,9 @@ setup(name='ericnuno',
     url="https://github.com/kingmold/ericnuno",
     author='Eric Nuno',
     author_email='ericnuno@gmail.com',
-    license='ericnuno',
-    packages=['ericnuno'],
-    zip_safe=False)
+    license='MIT',
+    packages=setuptools.find_packages(),
+    classifiers=(
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: OS Independent"))
