@@ -108,7 +108,23 @@ def tsend(phrase, tn):
 
     return
 
-def all_files(parentdir, extensions=[]):
+def shortfiles(parentdir, extensions=[]):
+    TotalFiles = []
+    if extensions == []:
+        for root, directories, filenames in os.walk(parentdir):
+            for filename in filenames:
+                TotalFiles.append(os.path.join(root, filename))
+
+    elif extensions != []:
+        for root, directories, filenames in os.walk(parentdir):
+            for filename in filenames:
+                for ext in extensions:
+                    if ext in filename:
+                        TotalFiles.append(filename)
+
+    return TotalFiles
+
+def longfiles(parentdir, extensions=[]):
     TotalFiles = []
     if extensions == []:
         for root, directories, filenames in os.walk(parentdir):
