@@ -1,6 +1,8 @@
 import paramiko
 import time
 import os
+import subprocess
+import telnetlib
 
 
 def ping(hostname):
