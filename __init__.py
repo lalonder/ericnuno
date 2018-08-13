@@ -113,7 +113,7 @@ def shortfiles(parentdir, extensions=[]):
     if extensions == []:
         for root, directories, filenames in os.walk(parentdir):
             for filename in filenames:
-                TotalFiles.append(os.path.join(root, filename))
+                TotalFiles.append(filename)
 
     elif extensions != []:
         for root, directories, filenames in os.walk(parentdir):
