@@ -3,7 +3,18 @@ import time
 import os
 import subprocess
 import telnetlib
+import smtplib
 
+def email(IP, to, from_field, subject, message):
+
+    subject = subject + "\r\n"
+    message = 'Subject: {}\n\n{}'.format(subject, message)
+    msg = ("From: " + from_field + "\r\nTo: " + ", ".join(to) + "\r\n" )
+    msg = msg + message
+
+    server = smtplib.SMTP(IP, "1025")
+    server.sendmail(from_field, to, msg)
+    server.quit()
 
 def ping(hostname, n=3):
     output = subprocess.run(["ping", hostname, "-n", str(n)], stdout=subprocess.PIPE)
