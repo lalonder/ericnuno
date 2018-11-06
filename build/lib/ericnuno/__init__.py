@@ -29,11 +29,9 @@ def ping(hostname, n=3):
     else:
         return False
 
-def ssh_connect(device_ip):
+def ssh_connect(device_ip, username, password):
     print("Connecting to: " + device_ip)
     hostname = device_ip
-    username = "administrator"
-    password = "password"
     port = 22
 
     client = paramiko.SSHClient()
