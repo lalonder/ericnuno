@@ -4,6 +4,12 @@ import os
 import subprocess
 import telnetlib
 import smtplib
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import Select
+from selenium.webdriver.remote.webdriver import WebDriver
+from selenium import webdriver
 
 def email(IP, to, from_field, subject, message):
 
@@ -12,7 +18,7 @@ def email(IP, to, from_field, subject, message):
     msg = ("From: " + from_field + "\r\nTo: " + ", ".join(to) + "\r\n" )
     msg = msg + message
 
-    server = smtplib.SMTP(IP, "1025")
+    server = smtplib.SMTP(IP, "25")
     server.sendmail(from_field, to, msg)
     server.quit()
 
@@ -29,6 +35,41 @@ def ping(hostname, n=3):
     else:
         return False
 
+def ZipToZone(zip):
+
+    zip = str(zip)
+    try:
+        req = requests.get('http://www.zip-info.com/cgi-local/zipsrch.exe?tz=tz&zip=' + zip +'&Go=Go')
+        req.raise_for_status()
+        ZipObj = bs4.BeautifulSoup(req.text, "lxml")
+
+        if "PST" in ZipObj.encode('ascii').decode():
+            return("Pacific")
+        elif "MST" in ZipObj.encode('ascii').decode():
+            return("Mountain")
+        elif "CST" in ZipObj.encode('ascii').decode():
+            return("Central")
+        elif "EST" in ZipObj.encode('ascii').decode():
+            return("Eastern")
+
+    except:
+        try:
+            messagebox.showerror("Error", "Couldn't pull the time zone, please make sure you're connected to the internet and try again.")
+        except:
+            print("Couldn't pull the time zone, please make sure you're connected to the internet and try again.")
+        return
+
+    return
+
+def eprint(Sentence):
+
+    SentLeng = len(Sentence)
+    print("="* SentLeng *3)
+    print(("=" * SentLeng) + Sentence + ("=" * SentLeng))
+    print("="* SentLeng *3)
+
+    return
+
 def ssh_connect(device_ip, username, password):
     print("Connecting to: " + device_ip)
     hostname = device_ip
@@ -43,13 +84,11 @@ def ssh_connect(device_ip, username, password):
     print("Successfully connected to: " + device_ip)
     return client, channel
 
-
 def psend(command, channel):
 
     channel.send(command)
 
-
-def pwait(waitstr, channel, tout=0):
+def pwait(waitstr, channel, tout=0, screenprint=False):
     startTime = int(time.time())
     stroutput = ''
     while waitstr not in stroutput:
@@ -59,7 +98,8 @@ def pwait(waitstr, channel, tout=0):
                 current = channel.recv(9999).decode()
                 stroutput += current
                 if current.strip() != '':
-                    print(current, end='')
+                    if screenprint:
+                        print(current, end='')
             except:
                 continue
 
@@ -67,14 +107,15 @@ def pwait(waitstr, channel, tout=0):
             if (currentTime - startTime) > tout:
                 try:
                     if current.strip() != '':
-                        print(current, end='')
+                        if screenprint:
+                            print(current, end='')
                 except:
                     pass
                 return stroutput
 
     return stroutput
 
-def twait(phrase, tn, tout = -1, logging = 'off', rcontent = False):
+def twait(phrase, tn, tout = -1, logging = 'off', rcontent = False, screenprint = False):
 
     # Adding code to allow lists for phrase
     finalcontent = ' '
@@ -92,7 +133,8 @@ def twait(phrase, tn, tout = -1, logging = 'off', rcontent = False):
             if (currentTime - startTime) > tout:
                 if logging == 'on':
                     #Adding the -e-e-> to differentiate from device output
-                    print('-e-e->It has been ' + str(tout) +  ' seconds. Timeout!')
+                    if screenprint:
+                        print('-e-e->It has been ' + str(tout) +  ' seconds. Timeout!')
                 if rcontent == False:
                     return 0
                 else:
@@ -105,7 +147,8 @@ def twait(phrase, tn, tout = -1, logging = 'off', rcontent = False):
         # if the returned content isn't blank. This stops
         # it from spamming new line characters
         if content.strip() != '':
-            print (content, end='')
+            if screenprint:
+                print (content, end='')
         # content was found! Return a 1 for success
         if type(phrase) is str:
             if phrase in content:
@@ -119,7 +162,6 @@ def twait(phrase, tn, tout = -1, logging = 'off', rcontent = False):
             count = 1
             for p in phrase:
                 if p in content:
-
                     if rcontent == False:
                         return count
                     else:
