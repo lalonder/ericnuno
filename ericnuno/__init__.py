@@ -87,10 +87,6 @@ def ssh_connect(device_ip, username, password, screenprint=False):
 
     return client, channel
 
-def pasend(command, channel):
-
-    channel.send(command)
-
 def psend(command, channel):
 
     channel.send(command)
@@ -175,8 +171,18 @@ def twait(phrase, tn, tout = -1, logging = 'off', rcontent = False, screenprint 
                         return count, finalcontent
                 count+=1
 
-def pawait(phrase, channel, tout = -1, logging = 'off', rcontent = False, screenprint = False):
+def wait(phrase, con, tout = -1, logging = 'off', rcontent = False, screenprint = False):
 
+    whatami = ''
+    try:
+        con.get_id()
+        whatami = 'ssh'
+    except:
+        try:
+            con.get_socket()
+            whatami = 'telnet'
+        except:
+            print("Could not determine if telnet or ssh")
     # Adding code to allow lists for phrase
     finalcontent = ' '
 
@@ -199,8 +205,12 @@ def pawait(phrase, channel, tout = -1, logging = 'off', rcontent = False, screen
                     return 0
                 else:
                     return 0, finalcontent
-        # Eager reading back from the device
-        content = channel.recv(99999).decode()
+
+        if whatami == 'telnet':
+            # Eager reading back from the device
+            content = (con.read_very_eager().decode().strip())
+        elif whatami == 'ssh':
+            content = con.recv(99999).decode()
 
         if content.strip() != '':
             finalcontent += content
@@ -227,6 +237,27 @@ def pawait(phrase, channel, tout = -1, logging = 'off', rcontent = False, screen
                     else:
                         return count, finalcontent
                 count+=1
+
+def send(phrase, con):
+
+    whatami = ''
+    try:
+        con.get_id()
+        whatami = 'ssh'
+    except:
+        try:
+            con.get_socket()
+            whatami = 'telnet'
+        except:
+            print("Could not determine if telnet or ssh")
+
+
+    if whatami == 'ssh':
+        con.send(phrase)
+    elif whatami == 'telnet':
+        con.write(phrase.encode())
+
+
 
 def tsend(phrase, tn):
 
