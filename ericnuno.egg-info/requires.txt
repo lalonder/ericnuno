@@ -1,0 +1,5 @@
+pyVim
+pyVmomi
+requests
+paramiko
+bs4

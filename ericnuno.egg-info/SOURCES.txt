@@ -4,4 +4,5 @@ ericnuno/__init__.py
 ericnuno.egg-info/PKG-INFO
 ericnuno.egg-info/SOURCES.txt
 ericnuno.egg-info/dependency_links.txt
+ericnuno.egg-info/requires.txt
 ericnuno.egg-info/top_level.txt

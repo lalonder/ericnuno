@@ -4,14 +4,119 @@ import os
 import subprocess
 import telnetlib
 import smtplib
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.support.ui import Select
-from selenium.webdriver.remote.webdriver import WebDriver
-from selenium import webdriver
+import bs4
+import requests
+import json
+import sys
+from pyVim.connect import SmartConnectNoSSL
+from pyVmomi import vim
+from pyVim import *
 
-def email(IP, to, from_field, subject, message):
+def FindVMIP(IP, usern, passw, vIP="10.160.111.161"):
+
+    def find_IP(virtual_machine, IPLook):
+
+        summary = virtual_machine.summary
+        for nic in virtual_machine.guest.net:
+
+            if nic.ipConfig is not None:
+                addresses = nic.ipConfig.ipAddress
+
+                for adr in addresses:
+                    #print(adr.ipAddress)
+                    if IPLook == adr.ipAddress:
+                        print("IP being used by: " + summary.config.name)
+        return
+
+    c = SmartConnectNoSSL(host=vIP, user=usern, pwd=passw)
+
+    content = c.RetrieveContent()
+    container = content.rootFolder
+    viewType = [vim.VirtualMachine]
+    recursive = True
+    containerView = content.viewManager.CreateContainerView(
+                container, viewType, recursive)
+    children = containerView.view
+
+    for child in children:
+        find_IP(child, IP)
+
+def RESTGet(url, usern="", passw="", devicetype=""):
+
+    import requests
+    import sys
+    import json
+
+    authskip = False
+    if devicetype.lower() == "dell":
+        usern = "root"
+        passw = "calvin"
+    elif devicetype.lower() == "quanta":
+        usern = "admin"
+        passw = "cmb9.admin"
+
+    if usern == "" and passw == "":
+        authskip = True
+
+    requests.packages.urllib3.disable_warnings()
+    try:
+        if not authskip:
+            response = requests.get(url, verify=False, auth=(usern, passw))
+        else:
+            response = requests.get(url, verify=False)  
+
+        JSONparsed = json.loads(response.text)
+        JSONPrettyOutput = json.dumps(JSONparsed, indent=4, sort_keys=True)
+        return JSONparsed, JSONPrettyOutput
+    except requests.exceptions.RequestException as err:
+        print(err)
+        sys.exit(1)
+
+def RESTPost(url, body, usern="", passw="", devicetype=""):
+
+    import requests
+    import sys
+    import json
+
+    authskip = False
+    if devicetype.lower() == "dell":
+        usern = "root"
+        passw = "calvin"
+    elif devicetype.lower() == "quanta":
+        usern = "admin"
+        passw = "cmb9.admin"
+
+    if usern == "" and passw == "":
+        authskip = True
+
+    headers = {
+        'Content-Type': "application/json",
+        'Cache-Control': "no-cache",
+        'Postman-Token': "119935c1-644c-419e-897a-be07c62f74bf"
+        }
+
+    requests.packages.urllib3.disable_warnings() #pylint: disable=E1101
+    try:
+        if not authskip:
+            response = requests.post(url, headers=headers, json=body, verify=False, auth=(usern, passw))
+        else:
+            response = requests.post(url, headers=headers, json=body, verify=False)
+
+        
+        JSONparsed = json.loads(response.text)
+        JSONPrettyOutput = json.dumps(JSONparsed, indent=4, sort_keys=True)
+        return JSONparsed, JSONPrettyOutput
+    except requests.exceptions.RequestException as err:
+        print(err)
+        sys.exit(1)
+
+def CMD(phrase):
+
+    phrase = phrase.split(" ")
+    output = subprocess.check_output(phrase)
+    return output
+
+def email(to, from_field, subject, message, IP="10.160.111.36"):
 
     subject = subject + "\r\n"
     message = 'Subject: {}\n\n{}'.format(subject, message)
@@ -35,8 +140,9 @@ def ping(hostname, n=3):
     else:
         return False
 
-def ZipToZone(zip):
+def ZipToZone(zip, msgbox=False):
 
+    import requests
     zip = str(zip)
     try:
         req = requests.get('http://www.zip-info.com/cgi-local/zipsrch.exe?tz=tz&zip=' + zip +'&Go=Go')
@@ -54,11 +160,11 @@ def ZipToZone(zip):
 
     except:
         try:
-            messagebox.showerror("Error", "Couldn't pull the time zone, please make sure you're connected to the internet and try again.")
+            if msgbox == True:
+                messagebox.showerror("Error", "Couldn't pull the time zone, please make sure you're connected to the internet and try again.")
         except:
             print("Couldn't pull the time zone, please make sure you're connected to the internet and try again.")
-        return
-
+            return
     return
 
 def eprint(Sentence):
@@ -73,6 +179,7 @@ def eprint(Sentence):
 def ssh_connect(device_ip, username, password, screenprint=False):
     if screenprint:
         print("Connecting to: " + device_ip)
+
     hostname = device_ip
     port = 22
 
@@ -256,8 +363,6 @@ def send(phrase, con):
         con.send(phrase)
     elif whatami == 'telnet':
         con.write(phrase.encode())
-
-
 
 def tsend(phrase, tn):
 

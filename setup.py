@@ -2,13 +2,14 @@ import setuptools
 from setuptools import setup
 
 setup(name='ericnuno',
-    version='0.47',
+    version='0.53',
     description='Erics common functions',
     url="https://github.com/kingmold/ericnuno",
     author='Eric Nuno',
     author_email='ericnuno@gmail.com',
     license='MIT',
     packages=setuptools.find_packages(),
+    install_requires=['pyVim', 'pyVmomi', 'requests', 'paramiko', 'bs4'],
     classifiers=(
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
