@@ -119,9 +119,36 @@ def RESTPost(url, body, usern="", passw="", devicetype=""):
         sys.exit(1)
 
 def CMD(phrase):
-
-    phrase = phrase.split(" ")
-    output = subprocess.check_output(phrase)
+    def formatCMDs(phrase):
+        cmds = [] #final list of commands to return
+        quotedCMD = '' #for appending command if in quotes
+        nonQuotedCMD = '' #for appending command if not in quotes
+        quoted = False #used as toggle to know which variable to append to
+        for ch in phrase: #iterating through each character - "'s are used to toggle quoted boolean
+            if ch == '"':
+                quoted = not quoted
+                if len(quotedCMD) > 0: #logic for if it's an end quote
+                    cmds.append(quotedCMD)
+                    quotedCMD = ''
+                if len(nonQuotedCMD) > 0: #if starting new quote after unquoted argument
+                    cmds.append(nonQuotedCMD)
+                    nonQuotedCMD = ''
+            if ch != '"':
+                if quoted: #appending to quotedCMD until toggle turned back off
+                    quotedCMD += ch
+                else:
+                    if ch == ' ' and len(nonQuotedCMD) > 0: #splitting unquoted commands
+                        cmds.append(nonQuotedCMD)
+                        nonQuotedCMD = ''
+                    elif ch != ' ': #appending unquoted command
+                        nonQuotedCMD += ch
+                        #doing nothing if encountering space with len(nonQuotedCMD) == 0
+        if len(nonQuotedCMD) > 0: #appending any stragglers at the end since can't use space as trigger
+                    cmds.append(nonQuotedCMD)
+                    nonQuotedCMD = ''
+        return cmds
+    cmds = formatCMDs(phrase)
+    output = subprocess.check_output(cmds, shell=True).decode()
     return output
 
 def email(fromField, toField, subject, message, IP="10.160.111.36", port="1025"):
