@@ -11,6 +11,8 @@ import sys
 from pyVim.connect import SmartConnectNoSSL
 from pyVmomi import vim
 from pyVim import *
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 def FindVMIP(IP, usern, passw, vIP="10.160.111.161"):
 
@@ -54,6 +56,9 @@ def RESTGet(url, usern="", passw="", devicetype=""):
     elif devicetype.lower() == "quanta":
         usern = "admin"
         passw = "cmb9.admin"
+    elif devicetype.lower() == 'supermicro':
+        usern = "ADMIN"
+        passw = "ADMIN"
 
     if usern == "" and passw == "":
         authskip = True
@@ -85,6 +90,9 @@ def RESTPost(url, body, usern="", passw="", devicetype=""):
     elif devicetype.lower() == "quanta":
         usern = "admin"
         passw = "cmb9.admin"
+    elif devicetype.lower() == 'supermicro':
+        usern = "ADMIN"
+        passw = "ADMIN"
 
     if usern == "" and passw == "":
         authskip = True
@@ -111,21 +119,103 @@ def RESTPost(url, body, usern="", passw="", devicetype=""):
         sys.exit(1)
 
 def CMD(phrase):
-
-    phrase = phrase.split(" ")
-    output = subprocess.check_output(phrase)
+    def formatCMDs(phrase):
+        cmds = [] #final list of commands to return
+        quotedCMD = '' #for appending command if in quotes
+        nonQuotedCMD = '' #for appending command if not in quotes
+        quoted = False #used as toggle to know which variable to append to
+        for ch in phrase: #iterating through each character - "'s are used to toggle quoted boolean
+            if ch == '"':
+                quoted = not quoted
+                if len(quotedCMD) > 0: #logic for if it's an end quote
+                    cmds.append(quotedCMD)
+                    quotedCMD = ''
+                if len(nonQuotedCMD) > 0: #if starting new quote after unquoted argument
+                    cmds.append(nonQuotedCMD)
+                    nonQuotedCMD = ''
+            if ch != '"':
+                if quoted: #appending to quotedCMD until toggle turned back off
+                    quotedCMD += ch
+                else:
+                    if ch == ' ' and len(nonQuotedCMD) > 0: #splitting unquoted commands
+                        cmds.append(nonQuotedCMD)
+                        nonQuotedCMD = ''
+                    elif ch != ' ': #appending unquoted command
+                        nonQuotedCMD += ch
+                        #doing nothing if encountering space with len(nonQuotedCMD) == 0
+        if len(nonQuotedCMD) > 0: #appending any stragglers at the end since can't use space as trigger
+                    cmds.append(nonQuotedCMD)
+                    nonQuotedCMD = ''
+        return cmds
+    cmds = formatCMDs(phrase)
+    output = subprocess.check_output(cmds, shell=True).decode()
     return output
 
-def email(to, from_field, subject, message, IP="10.160.111.36"):
-
-    subject = subject + "\r\n"
-    message = 'Subject: {}\n\n{}'.format(subject, message)
-    msg = ("From: " + from_field + "\r\nTo: " + ", ".join(to) + "\r\n" )
-    msg = msg + message
-
-    server = smtplib.SMTP(IP, "25")
-    server.sendmail(from_field, to, msg)
-    server.quit()
+def email(fromField, toField, subject, message, IP="10.160.111.36", port="1025"):
+#you can pass message as string, dict or an array of strings/dicts (or both)
+    def formatMessage(message):
+        #can format message as dict: {"Msg": "enter message here", "Tags": ["<ex1>", "<ex2>"]}
+        #order your tags in the order you want them nested
+        #closeTags() will automatically close them for you
+        def dictFormat(message):
+            def closeTags(tags):
+                closeTags = []
+                for tag in tags[::-1]: #reversing tags for proper nesting and returning as string
+                    closeTags.append(tag[0] + '/' + tag[1:]) 
+                return ''.join(closeTags)
+            #return only Msg for plain text
+            return message["Msg"], ''.join(message["Tags"]) + message["Msg"] + closeTags(message["Tags"])
+        def listFormat(message):
+            #will append each line to one main string per text and html
+            #text will append \n at end and html will append <br/> to signal end of line
+            joinText = ''
+            joinHTML = ''
+            for line in message:
+                if isinstance(line, str):
+                    joinText += line + '\n'
+                    joinHTML += line + '<br/>'
+                elif isinstance(line, dict):
+                    text, html = dictFormat(line)
+                    joinText += text + '\n'
+                    joinHTML += html + '<br/>'
+                else:
+                    return #error handling
+            return joinText, joinHTML
+        if isinstance(message, str):
+            text = message
+            html = message
+        elif isinstance(message, dict):
+            text, html = dictFormat(message)
+        elif isinstance(message, list):
+            text, html = listFormat(message)
+        else:
+            return #error handling
+        return text, html
+    from_field = fromField #"First Last <first.last@wwt.com>"
+    to_field = ', '.join(toField) #["First Last <first.last@wwt.com>", "First Last <first.last@wwt.com>"]
+    msg = MIMEMultipart("alternative")
+    msg["Subject"] = subject #string
+    msg["From"] = from_field
+    msg["To"] = to_field
+    text, html = formatMessage(message)
+    part1 = MIMEText(text, "plain")
+    part2 = MIMEText(html, "html")
+    msg.attach(part1)
+    msg.attach(part2)
+    try:
+        server = smtplib.SMTP(IP, port)
+        server.sendmail(from_field, to_field, msg.as_string())
+        server.quit()
+        print("\nThe email was sent successfully!\n")
+        return
+    except:
+        print("\n!!!The email failed to send!!!\n")
+        return
+    #need error checking to ensure tags are valid syntax
+    #need error checking to ensure tag is list
+    #need to allow tofield to be a string
+    #need to handle exceptions
+    #look into handling "Msg" as potential list in order to split up bodies to allow for inline html tags
 
 def ping(hostname, n=3):
     output = subprocess.run(["ping", hostname, "-n", str(n)], stdout=subprocess.PIPE)
@@ -363,8 +453,6 @@ def send(phrase, con):
         con.send(phrase)
     elif whatami == 'telnet':
         con.write(phrase.encode())
-
-
 
 def tsend(phrase, tn):
 
