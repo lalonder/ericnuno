@@ -56,7 +56,10 @@ def RESTGet(url, usern="", passw="", devicetype=""):
     elif devicetype.lower() == "quanta":
         usern = "admin"
         passw = "cmb9.admin"
-
+    elif devicetype.lower() == 'supermicro':
+        usern = "ADMIN"
+        passw = "ADMIN"
+        
     if usern == "" and passw == "":
         authskip = True
 
@@ -87,6 +90,9 @@ def RESTPost(url, body, usern="", passw="", devicetype=""):
     elif devicetype.lower() == "quanta":
         usern = "admin"
         passw = "cmb9.admin"
+    elif devicetype.lower() == 'supermicro':
+    usern = "ADMIN"
+    passw = "ADMIN"
 
     if usern == "" and passw == "":
         authskip = True
@@ -159,7 +165,7 @@ def email(fromField, toField, subject, message, IP="10.160.111.36", port="1025")
             return #error handling
         return text, html
     from_field = fromField #"First Last <first.last@wwt.com>"
-    to_field = ', '.join(toField) #["First Last <first.last@wwt.com", "First Last <first.last@wwt.com"]
+    to_field = ', '.join(toField) #["First Last <first.last@wwt.com>", "First Last <first.last@wwt.com>"]
     msg = MIMEMultipart("alternative")
     msg["Subject"] = subject #string
     msg["From"] = from_field
@@ -182,6 +188,7 @@ def email(fromField, toField, subject, message, IP="10.160.111.36", port="1025")
     #need error checking to ensure tag is list
     #need to allow tofield to be a string
     #need to handle exceptions
+    #look into handling "Msg" as potential list in order to split up bodies to allow for inline html tags
 
 def ping(hostname, n=3):
     output = subprocess.run(["ping", hostname, "-n", str(n)], stdout=subprocess.PIPE)
