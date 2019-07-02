@@ -59,7 +59,7 @@ def RESTGet(url, usern="", passw="", devicetype=""):
     elif devicetype.lower() == 'supermicro':
         usern = "ADMIN"
         passw = "ADMIN"
-        
+
     if usern == "" and passw == "":
         authskip = True
 
@@ -91,8 +91,8 @@ def RESTPost(url, body, usern="", passw="", devicetype=""):
         usern = "admin"
         passw = "cmb9.admin"
     elif devicetype.lower() == 'supermicro':
-    usern = "ADMIN"
-    passw = "ADMIN"
+        usern = "ADMIN"
+        passw = "ADMIN"
 
     if usern == "" and passw == "":
         authskip = True
