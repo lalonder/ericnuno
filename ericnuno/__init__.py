@@ -191,6 +191,18 @@ def email(fromField, toField, subject, message, IP="10.160.111.36", port="1025")
         else:
             return #error handling
         return text, html
+
+    # Converts a "to" string into a list for the email
+    if isinstance(toField, str):
+        if toField.count("@") == 1:
+            toFieldString = toField
+            toField = []
+            toField.append(toFieldString)
+        elif toField.count(";") > 1 and toField.count(",") == 0: # emails can be separated by ","
+            toField = toField.split(";")
+        elif toField.count(",") > 1 and toField.count(";") == 0: # emails can also be separated by ";"
+            toField = toField.split(",")
+
     from_field = fromField #"First Last <first.last@wwt.com>"
     to_field = ', '.join(toField) #["First Last <first.last@wwt.com>", "First Last <first.last@wwt.com>"]
     msg = MIMEMultipart("alternative")
@@ -213,7 +225,6 @@ def email(fromField, toField, subject, message, IP="10.160.111.36", port="1025")
         return
     #need error checking to ensure tags are valid syntax
     #need error checking to ensure tag is list
-    #need to allow tofield to be a string
     #need to handle exceptions
     #look into handling "Msg" as potential list in order to split up bodies to allow for inline html tags
 
