@@ -508,11 +508,11 @@ def longfiles(parentdir, extensions=[]):
 def get_secret(secretID, server = None, port = None, Username=None, Password=None): 
     #pass in mongodb _id to retrieve associated secret
     #pass in creds at function call - you can exclude password and enter it at prompt for extra security
-    if not server or not port or not Username or not Password: #if all params are not passed into function
+    if not server or not port or not Username or not Password: #if a param is not passed into function
         #alternatively to passing args, put creds.csv within working dir that include either: 
         #http://url:,port,user,pass
         #or
-        ##http://url:,port,user - leaving off password will ask you to enter it at prompt
+        #http://url:,port,user - leaving off password will ask you to enter it at prompt
         if 'creds.csv' in os.listdir():
             f = open('./creds.csv', 'r')
             contents = f.readlines()[0].split(',')
