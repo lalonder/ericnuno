@@ -460,7 +460,7 @@ def send(phrase, con):
             whatami = 'telnet'
         except:
             print("Could not determine if telnet or ssh")
-
+            return
 
     if whatami == 'ssh':
         con.send(phrase)
