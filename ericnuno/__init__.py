@@ -505,21 +505,32 @@ def longfiles(parentdir, extensions=[]):
 
     return TotalFiles
 
-def get_secret(secretID, Username=None, Password=None): #pass in mongodb _id to retrieve associated secret
-    server = 'http://itcsandbox.wwt.com:'
-    port = '3020'
-    if not Username and not Password: #you can pass username and password at function call
-        #otherwise, put txt file named creds.txt within working dir that include creds like so: user,pass
-        if 'creds.txt' in os.listdir():
-            f = open('./creds.txt', 'r')
+def get_secret(secretID, server = None, port = None, Username=None, Password=None): 
+    #pass in mongodb _id to retrieve associated secret
+    #pass in creds at function call - you can exclude password and enter it at prompt for extra security
+    if not server or not port or not Username or not Password: #if all params are not passed into function
+        #alternatively to passing args, put creds.csv within working dir that include either: 
+        #http://url:,port,user,pass
+        #or
+        ##http://url:,port,user - leaving off password will ask you to enter it at prompt
+        if 'creds.csv' in os.listdir():
+            f = open('./creds.csv', 'r')
             contents = f.readlines()[0].split(',')
-            Username = contents[0]
-            Password = contents[1]
+            if len(contents) >= 3: #will skip to prompt for input if creds.csv incorrectly formatted
+                server = contents[0].replace('\n', '')
+                port = contents[1].replace('\n', '')
+                Username = contents[2].replace('\n', '')
+                if len(contents) == 4:
+                    Password = contents[3].replace('\n', '') #will pull password if it exists
             f.close()
-        #or, for best security, enter creds at prompt upon function call
-        else:
+        if not server or not port or not Username: #if main 3 not passed or acquired via csv, enter at prompt 
+            server = input('Server address: ')
+            port = input('Port number: ')
             Username = input('Username: ')
+        if not Password: #if password not passed or acquired via csv, enter at prompt - even if main 3 already specified
             Password = getpass.getpass()
+    if server[-1] != ':': #will automatically append : if left off of end of server path
+                server += ':'
     creds = {'Username': Username, 'Password': Password}
     loginURL = server + port + '/api/login/'
     #try except in case api is not accessible
