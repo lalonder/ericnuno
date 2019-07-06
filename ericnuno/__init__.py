@@ -13,6 +13,7 @@ from pyVmomi import vim
 from pyVim import *
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import getpass
 
 def FindVMIP(IP, usern, passw, vIP="10.160.111.161"):
 
@@ -503,3 +504,56 @@ def longfiles(parentdir, extensions=[]):
                         TotalFiles.append(os.path.join(root, filename))
 
     return TotalFiles
+
+def get_secret(secretID, server = None, port = None, Username=None, Password=None): 
+    #pass in mongodb _id to retrieve associated secret
+    #pass in creds at function call - you can exclude password and enter it at prompt for extra security
+    if not server or not port or not Username or not Password: #if a param is not passed into function
+        #alternatively to passing args, put creds.csv within working dir that include either: 
+        #http://url:,port,user,pass
+        #or
+        #http://url:,port,user - leaving off password will ask you to enter it at prompt
+        if 'creds.csv' in os.listdir():
+            f = open('./creds.csv', 'r')
+            contents = f.readlines()[0].split(',')
+            if len(contents) >= 3: #will skip to prompt for input if creds.csv incorrectly formatted
+                server = contents[0].replace('\n', '')
+                port = contents[1].replace('\n', '')
+                Username = contents[2].replace('\n', '')
+                if len(contents) == 4:
+                    Password = contents[3].replace('\n', '') #will pull password if it exists
+            f.close()
+        if not server or not port or not Username: #if main 3 not passed or acquired via csv, enter at prompt 
+            server = input('Server address: ')
+            port = input('Port number: ')
+            Username = input('Username: ')
+        if not Password: #if password not passed or acquired via csv, enter at prompt - even if main 3 already specified
+            Password = getpass.getpass()
+    if server[-1] != ':': #will automatically append : if left off of end of server path
+                server += ':'
+    creds = {'Username': Username, 'Password': Password}
+    loginURL = server + port + '/api/login/'
+    #try except in case api is not accessible
+    try:
+        #using creds to login/retrieve token
+        tokenRes = requests.post(url = loginURL, json = creds)
+    except:
+        print('Unable to access API')
+        return
+    tokenJSON = tokenRes.json()
+    #checking to see if creds are valid
+    if 'token' not in tokenJSON:
+        print('Invalid login credentials!')
+        return
+    token = tokenJSON['token']
+    #using provided 
+    secretsURL = server + port + '/api/secrets/' + secretID
+    #using token to retrieve secret by _id
+    secretRes = requests.get(url = secretsURL, headers={'Authorization': token})
+    secretJSON = secretRes.json()
+    #checking to see if valid _id was provided
+    if 'Secret' not in secretJSON:
+        print('Invalid secret _id has been provided')
+        return
+    secret = secretJSON["Secret"]
+    return secret #returning secret as string
