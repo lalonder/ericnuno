@@ -13,6 +13,7 @@ from pyVmomi import vim
 from pyVim import *
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import getpass
 
 def FindVMIP(IP, usern, passw, vIP="10.160.111.161"):
 
@@ -503,3 +504,45 @@ def longfiles(parentdir, extensions=[]):
                         TotalFiles.append(os.path.join(root, filename))
 
     return TotalFiles
+
+def get_secret(secretID, Username=None, Password=None): #pass in mongodb _id to retrieve associated secret
+    server = 'http://itcsandbox.wwt.com:'
+    port = '3020'
+    if not Username and not Password: #you can pass username and password at function call
+        #otherwise, put txt file named creds.txt within working dir that include creds like so: user,pass
+        if 'creds.txt' in os.listdir():
+            f = open('./creds.txt', 'r')
+            contents = f.readlines()[0].split(',')
+            Username = contents[0]
+            Password = contents[1]
+            f.close()
+        #or, for best security, enter creds at prompt upon function call
+        else:
+            Username = input('Username: ')
+            Password = getpass.getpass()
+    creds = {'Username': Username, 'Password': Password}
+    loginURL = server + port + '/api/login/'
+    #try except in case api is not accessible
+    try:
+        #using creds to login/retrieve token
+        tokenRes = requests.post(url = loginURL, json = creds)
+    except:
+        print('Unable to access API')
+        return
+    tokenJSON = tokenRes.json()
+    #checking to see if creds are valid
+    if 'token' not in tokenJSON:
+        print('Invalid login credentials!')
+        return
+    token = tokenJSON['token']
+    #using provided 
+    secretsURL = server + port + '/api/secrets/' + secretID
+    #using token to retrieve secret by _id
+    secretRes = requests.get(url = secretsURL, headers={'Authorization': token})
+    secretJSON = secretRes.json()
+    #checking to see if valid _id was provided
+    if 'Secret' not in secretJSON:
+        print('Invalid secret _id has been provided')
+        return
+    secret = secretJSON["Secret"]
+    return secret #returning secret as string
