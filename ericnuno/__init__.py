@@ -483,6 +483,7 @@ def wait(phrase, con, tout = -1, logging = 'off', rcontent = False, screenprint 
             whatami = 'telnet'
         except:
             print("Could not determine if telnet or ssh")
+            return
     # Adding code to allow lists for phrase
     finalcontent = ' '
 
@@ -550,7 +551,7 @@ def send(phrase, con):
             whatami = 'telnet'
         except:
             print("Could not determine if telnet or ssh")
-
+            return
 
     if whatami == 'ssh':
         con.send(phrase)
@@ -647,4 +648,3 @@ def get_secret(secretID, server = None, port = None, Username=None, Password=Non
         return
     secret = secretJSON["Secret"]
     return secret #returning secret as string
-
