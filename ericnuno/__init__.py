@@ -8,12 +8,103 @@ import bs4
 import requests
 import json
 import sys
+import serial
+import serial.tools.list_ports
 from pyVim.connect import SmartConnectNoSSL
 from pyVmomi import vim
 from pyVim import *
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 import getpass
+
+class COM_Manager:
+    def __init__(self, baudrate=9600, parity='N', stopbits=1, bytesize=8, timeout=None):
+      self.baudrate = baudrate
+      self.parity = parity
+      self.stopbits = stopbits
+      self.bytesize = bytesize
+      self.timeout = timeout
+
+    def find_active_COMs(self):
+        COMs = []
+        print('Checking for available COM ports')
+        for port in [tuple(p) for p in list(serial.tools.list_ports.comports())]:
+            for index in port:
+                if 'USB' in index and 'Serial' in index:
+                    COMs.append(port[0])
+                    break
+        return COMs
+        
+    def find_active_sessions(self, COMs): 
+        connectedCOMs = []  
+        print('Checking for active COM sessions')  
+        for COM in COMs:
+            try:
+                ser = serial.Serial(COM, baudrate=self.baudrate, parity=self.parity, stopbits=self.stopbits, bytesize=self.bytesize, timeout=self.timeout)
+                ser.write(b'\r\n')
+                for i in range(800):
+                    time.sleep(.01)
+                    if ser.in_waiting > 0:
+                        connectedCOMs.append(COM)
+                        break
+                ser.close()
+            except serial.serialutil.SerialException as err:
+                connectedCOMs.append({"Error": err})
+        return connectedCOMs
+
+    def resolve_COM(self, activeSessions):
+        def select_COM(activeSessions):
+            index = None
+            while not isinstance(index, int) or int(index) < 0 or int(index) > len(activeSessions):
+                for i in range(len(activeSessions)):
+                    print('Which COM would you like to use?')
+                    print('[' + str(i) + '] ' + activeSessions[i])
+                    try:
+                        index = int(input('> '))
+                        return activeSessions[index]
+                    except:
+                        pass
+        if len(activeSessions) == 0:
+            print('No sessions are currently available. Please ensure you are connected and the device is powered on.')
+            return None
+        elif len(activeSessions) > 1:
+            return select_COM(activeSessions)
+        else:
+            return activeSessions[0]
+
+    def establish_COM_session(self, COM):
+        if COM:
+            print('Creating session')
+            if 'Error' in COM:
+                    print(COM['Error'])
+            else:
+                ser = serial.Serial(COM, baudrate=self.baudrate, parity=self.parity, stopbits=self.stopbits, bytesize=self.bytesize, timeout=self.timeout)
+                cmd = b'\r\n'
+                ser.write(cmd)
+                while True:
+                    active = False
+                    for i in range(800):
+                        time.sleep(.1)
+                        if ser.in_waiting > 0:
+                            active = True
+                            break
+                    if not active:
+                        break
+                    while True:
+                        output = ser.read().decode()
+                        print(output, end='', flush=True)
+                        time.sleep(.0001)
+                        if ser.in_waiting == 0:
+                            break
+                    cmd = input(' ').encode() + b'\r'
+                    ser.write(cmd)
+        return
+
+    def auto_COM(self):
+        activeCOMs = self.find_active_COMs()
+        activeSessions = self.find_active_sessions(activeCOMs)
+        COM = self.resolve_COM(activeSessions)
+        self.establish_COM_session(COM)
 
 def FindVMIP(IP, usern, passw, vIP="10.160.111.161"):
 
@@ -547,7 +638,6 @@ def get_secret(secretID, server = None, port = None, Username=None, Password=Non
         print('Invalid login credentials!')
         return
     token = tokenJSON['token']
-    #using provided 
     secretsURL = server + port + '/api/secrets/' + secretID
     #using token to retrieve secret by _id
     secretRes = requests.get(url = secretsURL, headers={'Authorization': token})
