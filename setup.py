@@ -2,7 +2,7 @@ import setuptools
 from setuptools import setup
 
 setup(name='ericnuno',
-    version='0.54',
+    version='0.55',
     description='Erics common functions',
     url="https://github.com/kingmold/ericnuno",
     author='Eric Nuno',
