@@ -3,3 +3,4 @@ pyVmomi
 requests
 paramiko
 bs4
+serial
