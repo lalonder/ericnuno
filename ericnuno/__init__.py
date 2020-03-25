@@ -20,6 +20,7 @@ import bs4
 import requests
 import serial
 import serial.tools.list_ports
+import base64
 
 
 class rest:
