@@ -18,11 +18,81 @@ import getpass
 import paramiko
 import bs4
 import requests
-from pyvim.connect import SmartConnectNoSSL
-from pyvim import *
-from pyVmomi import vim
 import serial
 import serial.tools.list_ports
+
+
+class rest:
+
+    def __init__(self, uri, creds="", header=""):
+        self.verify_uri(uri)    
+        # Default credentials
+        dell = ("root", "calvin")
+        quanta = ("admin", "cmb9.admin")
+        supermicro = ("ADMIN", "ADMIN")
+
+        # Variable assignment
+        self.uri = uri
+        self.verify = True
+        self.header = header
+
+        # So the user can enter any level of capitalization
+        try:
+            creds = creds.lower()
+        except:
+            pass
+
+        # Default creds for servers plus base setup
+        if creds == "dell":
+            self.creds = dell
+        elif creds == "quanta":
+            self.creds = quanta
+        elif creds == "supermicro":
+            self.creds = supermicro
+        elif creds == "":
+            self.verify = False
+        else:
+            # Expecting a given username / password
+            if type(creds) == tuple and len(creds) == 2:
+                self.creds = creds
+            elif type(creds) == list and len(creds) == 2:
+                self.creds = tuple(creds)
+
+    def verify_uri(self, uri):
+        """ Basic verification of uri """
+        if not uri.startswith("http://") and not uri.startswith("https://"):
+            print("====> WARNING: Invalid looking URI,not seeing http:// or https://")         
+
+    def get(self, pretty='no'):
+        if self.verify:
+            response = requests.get(self.uri, headers=self.header, verify=self.verify, auth=self.creds)
+        elif not self.verify: 
+            response = requests.get(self.uri, headers=self.header, verify=self.verify)
+
+        return self.json_translate(response, pretty)
+
+
+    def post(self, body, pretty='no'):
+        if self.verify:
+            response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify, auth=self.creds)
+        elif not self.verify: 
+            response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify)
+        
+        return self.json_translate(response, pretty)
+
+    def json_translate(self, response, pretty):
+
+        # Turn the response into readable data using JSON module
+        try:
+            regularJSON = json.loads(response.text)
+            prettyJSON = json.dumps(regularJSON, indent=4, sort_keys=True)
+        except:
+            return(response)
+
+        if pretty.lower() == 'yes':
+            return prettyJSON
+        elif pretty.lower() == 'no':
+            return regularJSON
 
 
 class COM_Manager:
@@ -115,33 +185,6 @@ class COM_Manager:
         activeSessions = self.find_active_sessions(activeCOMs)
         COM = self.resolve_COM(activeSessions)
         self.establish_COM_session(COM)
-
-def FindVMIP(IP, usern, passw, vIP):
-    """ This finds virtual machine IP addresses in vSphere """
-    def find_IP(virtual_machine, IPLook):
-
-        summary = virtual_machine.summary
-        for nic in virtual_machine.guest.net:
-
-            if nic.ipConfig is not None:
-                addresses = nic.ipConfig.ipAddress
-
-                for adr in addresses:
-                    if IPLook == adr.ipAddress:
-                        print("IP being used by: " + summary.config.name)
-
-    c = SmartConnectNoSSL(host=vIP, user=usern, pwd=passw)
-
-    content = c.RetrieveContent()
-    container = content.rootFolder
-    viewType = [vim.VirtualMachine]
-    recursive = True
-    containerView = content.viewManager.CreateContainerView(
-        container, viewType, recursive)
-    children = containerView.view
-
-    for child in children:
-        find_IP(child, IP)
 
 def RESTGet(url, usern="", passw="", devicetype=""):
     """ Performs a RESTful API 'GET' """
