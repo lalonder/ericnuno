@@ -24,14 +24,14 @@ from urllib.parse import urlparse
 
 
 class rest:
-    def __init__(self, uri: str, oem: str, header: str, username=None, password=None):
-        # Default credentials
-        def_dict = {
-            'dell': ("root", "calvin"),
-            'quanta': ("admin", "cmb9.admin"),
-            'supermicro': ("ADMIN", "ADMIN")
-        }
+    # Default credentials
+    def_dict = {
+        'dell': ("root", "calvin"),
+        'quanta': ("admin", "cmb9.admin"),
+        'supermicro': ("ADMIN", "ADMIN")
+    }
 
+    def __init__(self, uri: str, oem: str, header: str, username=None, password=None):
         # Variable assignment
         self.uri = uri
         self.verify = True
@@ -39,26 +39,14 @@ class rest:
 
         self.verify_uri(uri)
 
-        # # So the user can enter any level of capitalization
-        # try:
-        #     creds = creds.lower()
-        # except:
-        #     pass
-
-        # Default creds for servers plus base setup
-
         if isinstance(username, str) and isinstance(password, str):
             self.username = username
             self.password = password
-        elif oem.lower() in def_dict.keys():
-            self.username, self.password = def_dict[oem.lower()]
+        elif oem.lower() in self.def_dict.keys():
+            self.username, self.password = self.def_dict[oem.lower()]
         else:
-            # # Expecting a given username / password
-            # if type(creds) == tuple and len(creds) == 2:
-            #     self.creds = creds
-            # elif type(creds) == list and len(creds) == 2:
-            #     self.creds = tuple(creds)
             self.verify = False
+
     @property
     def __repr__(self) -> str:
         return 'rest({0.uri!r}, {0.username!r}, {0.password!r}, {0.header!r}'.format(self)
@@ -78,7 +66,7 @@ class rest:
 
     def post(self, body, pretty=False):
         if self.verify:
-            response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify, auth=self.creds)
+            response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify, auth=(self.username, self.password))
         elif not self.verify:
             response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify)
 
