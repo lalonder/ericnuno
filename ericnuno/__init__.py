@@ -4,11 +4,9 @@ Author: Eric Nuno
 These are for making my own life easier, nothing else.
 """
 
-
-import time
+from time import sleep, time
 import os
 import subprocess
-import telnetlib
 import smtplib
 import json
 import sys
@@ -20,89 +18,119 @@ import bs4
 import requests
 import serial
 import serial.tools.list_ports
-import base64
+from urllib.parse import urlparse
+# import base64
+# import telnetlib
 
 
 class rest:
-
-    def __init__(self, uri, creds="", header=""):
-        self.verify_uri(uri)    
+    def __init__(self, uri: str, oem: str, header: str, username=None, password=None):
         # Default credentials
-        dell = ("root", "calvin")
-        quanta = ("admin", "cmb9.admin")
-        supermicro = ("ADMIN", "ADMIN")
+        def_dict = {
+            'dell': ("root", "calvin"),
+            'quanta': ("admin", "cmb9.admin"),
+            'supermicro': ("ADMIN", "ADMIN")
+        }
 
         # Variable assignment
         self.uri = uri
         self.verify = True
         self.header = header
 
-        # So the user can enter any level of capitalization
-        try:
-            creds = creds.lower()
-        except:
-            pass
+        self.verify_uri(uri)
+
+        # # So the user can enter any level of capitalization
+        # try:
+        #     creds = creds.lower()
+        # except:
+        #     pass
 
         # Default creds for servers plus base setup
-        if creds == "dell":
-            self.creds = dell
-        elif creds == "quanta":
-            self.creds = quanta
-        elif creds == "supermicro":
-            self.creds = supermicro
-        elif creds == "":
-            self.verify = False
+
+        if isinstance(username, str) and isinstance(password, str):
+            self.username = username
+            self.password = password
+        elif oem.lower() in def_dict.keys():
+            self.username, self.password = def_dict[oem.lower()]
         else:
-            # Expecting a given username / password
-            if type(creds) == tuple and len(creds) == 2:
-                self.creds = creds
-            elif type(creds) == list and len(creds) == 2:
-                self.creds = tuple(creds)
+            # # Expecting a given username / password
+            # if type(creds) == tuple and len(creds) == 2:
+            #     self.creds = creds
+            # elif type(creds) == list and len(creds) == 2:
+            #     self.creds = tuple(creds)
+            self.verify = False
+    @property
+    def __repr__(self) -> str:
+        return 'rest({0.uri!r}, {0.username!r}, {0.password!r}, {0.header!r}'.format(self)
 
-    def verify_uri(self, uri):
-        """ Basic verification of uri """
-        if not uri.startswith("http://") and not uri.startswith("https://"):
-            print("====> WARNING: Invalid looking URI,not seeing http:// or https://")         
+    @property
+    def __str__(self) -> str:
+        return 'URI: {0.uri!s} Username: {0.username!s} Password: {0.password!s} Headers: {0.header!s}'.format(self)
 
-    def get(self, pretty='no'):
+    # Changed 'yes' and 'no' values to True and False. Booleans are better equipped for a switch-like parameter
+    def get(self, pretty=False):
         if self.verify:
-            response = requests.get(self.uri, headers=self.header, verify=self.verify, auth=self.creds)
-        elif not self.verify: 
+            response = requests.get(self.uri, headers=self.header, verify=self.verify, auth=(self.username, self.password))
+        elif not self.verify:
             response = requests.get(self.uri, headers=self.header, verify=self.verify)
 
         return self.json_translate(response, pretty)
 
-
-    def post(self, body, pretty='no'):
+    def post(self, body, pretty=False):
         if self.verify:
             response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify, auth=self.creds)
-        elif not self.verify: 
+        elif not self.verify:
             response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify)
-        
+
         return self.json_translate(response, pretty)
 
-    def json_translate(self, response, pretty):
+    @staticmethod
+    def verify_uri(uri: str):
+        """ Basic verification of uri """
+        parsed_uri = urlparse(uri)
+        if parsed_uri.scheme not in ['http', 'https']:
+            uri = None
+        return uri
+        # if not (uri.startswith("http://") or uri.startswith("https://")):
+        #     print("====> WARNING: Invalid looking URI,not seeing http:// or https://")
+
+
+    @staticmethod
+    def json_translate(response: requests.Response, pretty):
 
         # Turn the response into readable data using JSON module
         try:
-            regularJSON = json.loads(response.text)
-            prettyJSON = json.dumps(regularJSON, indent=4, sort_keys=True)
+            regular_json = json.loads(response.text)
+            pretty_json = json.dumps(regular_json, indent=4, sort_keys=True)
         except:
-            return(response)
+            return response
 
         if pretty.lower() == 'yes':
-            return prettyJSON
+            return pretty_json
         elif pretty.lower() == 'no':
-            return regularJSON
+            return regular_json
 
+    @classmethod
+    def add_default_login(cls, oem: str, username: str, password: str, quiet=True):
+        if oem not in cls.def_dict.keys():
+            cls.def_dict.update({oem : (username, password)})
+
+        if not quiet:
+            return 'Success!'
+
+    @classmethod
+    def update_default_login(cls, oem: str, username: str, password: str):
+        if oem in cls.def_dict.keys():
+            cls.def_dict[oem] = (username, password)
+        return
 
 class COM_Manager:
     def __init__(self, baudrate=9600, parity='N', stopbits=1, bytesize=8, timeout=None):
-      self.baudrate = baudrate
-      self.parity = parity
-      self.stopbits = stopbits
-      self.bytesize = bytesize
-      self.timeout = timeout
+        self.baudrate = baudrate
+        self.parity = parity
+        self.stopbits = stopbits
+        self.bytesize = bytesize
+        self.timeout = timeout
 
     def find_active_COMs(self):
         COMs = []
@@ -123,7 +151,7 @@ class COM_Manager:
                                     stopbits=self.stopbits, bytesize=self.bytesize, timeout=self.timeout)
                 ser.write(b'\r\n')
                 for i in range(800):
-                    time.sleep(.01)
+                    sleep(.01)
                     if ser.in_waiting > 0:
                         connectedCOMs.append(COM)
                         break
@@ -144,6 +172,7 @@ class COM_Manager:
                         return activeSessions[index]
                     except:
                         pass
+
         if len(activeSessions) == 0:
             print('No sessions are currently available. Please ensure you are connected and the device is powered on.')
             return None
@@ -156,7 +185,7 @@ class COM_Manager:
         if COM:
             print('Creating session')
             if 'Error' in COM:
-                    print(COM['Error'])
+                print(COM['Error'])
             else:
                 ser = serial.Serial(COM, baudrate=self.baudrate, parity=self.parity,
                                     stopbits=self.stopbits, bytesize=self.bytesize, timeout=self.timeout)
@@ -165,7 +194,7 @@ class COM_Manager:
                 while True:
                     active = False
                     for i in range(800):
-                        time.sleep(.1)
+                        sleep(.1)
                         if ser.in_waiting > 0:
                             active = True
                             break
@@ -174,7 +203,7 @@ class COM_Manager:
                     while True:
                         output = ser.read().decode()
                         print(output, end='', flush=True)
-                        time.sleep(.0001)
+                        sleep(.0001)
                         if ser.in_waiting == 0:
                             break
                     cmd = input(' ').encode() + b'\r'
@@ -186,6 +215,7 @@ class COM_Manager:
         activeSessions = self.find_active_sessions(activeCOMs)
         COM = self.resolve_COM(activeSessions)
         self.establish_COM_session(COM)
+
 
 def RESTGet(url, usern="", passw="", devicetype=""):
     """ Performs a RESTful API 'GET' """
@@ -217,6 +247,7 @@ def RESTGet(url, usern="", passw="", devicetype=""):
         print(err)
         sys.exit(1)
 
+
 def RESTPost(url, body, usern="", passw="", devicetype=""):
     """ Performs a RESTful API 'POST' """
     authskip = False
@@ -237,9 +268,9 @@ def RESTPost(url, body, usern="", passw="", devicetype=""):
         'Content-Type': "application/json",
         'Cache-Control': "no-cache",
         'Postman-Token': "119935c1-644c-419e-897a-be07c62f74bf"
-        }
+    }
 
-    requests.packages.urllib3.disable_warnings() #pylint: disable=E1101
+    requests.packages.urllib3.disable_warnings()  # pylint: disable=E1101
     try:
         if not authskip:
             response = requests.post(url, headers=headers, json=body, verify=False, auth=(usern, passw))
@@ -253,34 +284,36 @@ def RESTPost(url, body, usern="", passw="", devicetype=""):
         print(err)
         sys.exit(1)
 
+
 def CMD(phrase):
     """ Need to ask Ricky what this does again """
+
     def formatCMDs(phrase):
-        cmds = [] #final list of commands to return
-        quotedCMD = '' #for appending command if in quotes
-        nonQuotedCMD = '' #for appending command if not in quotes
-        quoted = False #used as toggle to know which variable to append to
-        for ch in phrase: #iterating through each character - "'s are used to toggle quoted boolean
+        cmds = []  # final list of commands to return
+        quotedCMD = ''  # for appending command if in quotes
+        nonQuotedCMD = ''  # for appending command if not in quotes
+        quoted = False  # used as toggle to know which variable to append to
+        for ch in phrase:  # iterating through each character - "'s are used to toggle quoted boolean
             if ch == '"':
                 quoted = not quoted
-                if len(quotedCMD) > 0: #logic for if it's an end quote
+                if len(quotedCMD) > 0:  # logic for if it's an end quote
                     cmds.append(quotedCMD)
                     quotedCMD = ''
-                if len(nonQuotedCMD) > 0: #if starting new quote after unquoted argument
+                if len(nonQuotedCMD) > 0:  # if starting new quote after unquoted argument
                     cmds.append(nonQuotedCMD)
                     nonQuotedCMD = ''
             if ch != '"':
-                if quoted: #appending to quotedCMD until toggle turned back off
+                if quoted:  # appending to quotedCMD until toggle turned back off
                     quotedCMD += ch
                 else:
-                    if ch == ' ' and len(nonQuotedCMD) > 0: #splitting unquoted commands
+                    if ch == ' ' and len(nonQuotedCMD) > 0:  # splitting unquoted commands
                         cmds.append(nonQuotedCMD)
                         nonQuotedCMD = ''
-                    elif ch != ' ': #appending unquoted command
+                    elif ch != ' ':  # appending unquoted command
                         nonQuotedCMD += ch
-                        #doing nothing if encountering space with len(nonQuotedCMD) == 0
+                        # doing nothing if encountering space with len(nonQuotedCMD) == 0
 
-        if len(nonQuotedCMD) > 0: #appending any stragglers at the end since can't use space as trigger
+        if len(nonQuotedCMD) > 0:  # appending any stragglers at the end since can't use space as trigger
             cmds.append(nonQuotedCMD)
             nonQuotedCMD = ''
         return cmds
@@ -289,28 +322,28 @@ def CMD(phrase):
     output = subprocess.check_output(cmds, shell=True).decode()
     return output
 
-def email(fromField, toField, subject, message, IP, port="25"):
 
+def email(fromField, toField, subject, message, IP, port="25"):
     """ email function """
 
-    #you can pass message as string, dict or an array of strings/dicts (or both)
+    # you can pass message as string, dict or an array of strings/dicts (or both)
     def formatMessage(message):
-        #can format message as dict: {"Msg": "enter message here", "Tags": ["<ex1>", "<ex2>"]}
-        #order your tags in the order you want them nested
-        #closeTags() will automatically close them for you
+        # can format message as dict: {"Msg": "enter message here", "Tags": ["<ex1>", "<ex2>"]}
+        # order your tags in the order you want them nested
+        # closeTags() will automatically close them for you
         def dictFormat(message):
             def closeTags(tags):
                 closeTags = []
-                for tag in tags[::-1]: #reversing tags for proper nesting and returning as string
+                for tag in tags[::-1]:  # reversing tags for proper nesting and returning as string
                     closeTags.append(tag[0] + '/' + tag[1:])
                 return ''.join(closeTags)
 
-            #return only Msg for plain text
+            # return only Msg for plain text
             return message["Msg"], ''.join(message["Tags"]) + message["Msg"] + closeTags(message["Tags"])
 
         def listFormat(message):
-            #will append each line to one main string per text and html
-            #text will append \n at end and html will append <br/> to signal end of line
+            # will append each line to one main string per text and html
+            # text will append \n at end and html will append <br/> to signal end of line
             joinText = ''
             joinHTML = ''
             for line in message:
@@ -322,7 +355,7 @@ def email(fromField, toField, subject, message, IP, port="25"):
                     joinText += text + '\n'
                     joinHTML += html + '<br/>'
                 else:
-                    return #error handling
+                    return  # error handling
             return joinText, joinHTML
 
         if isinstance(message, str):
@@ -333,7 +366,7 @@ def email(fromField, toField, subject, message, IP, port="25"):
         elif isinstance(message, list):
             text, html = listFormat(message)
         else:
-            return #error handling
+            return  # error handling
         return text, html
 
     # Converts a "to" string into a list for the email
@@ -342,15 +375,15 @@ def email(fromField, toField, subject, message, IP, port="25"):
             toFieldString = toField
             toField = []
             toField.append(toFieldString)
-        elif toField.count(";") > 1 and toField.count(",") == 0: # emails can be separated by ","
+        elif toField.count(";") > 1 and toField.count(",") == 0:  # emails can be separated by ","
             toField = toField.split(";")
-        elif toField.count(",") > 1 and toField.count(";") == 0: # emails can also be separated by ";"
+        elif toField.count(",") > 1 and toField.count(";") == 0:  # emails can also be separated by ";"
             toField = toField.split(",")
 
-    from_field = fromField #"First Last <first.last@wwt.com>"
-    to_field = ', '.join(toField) #["First Last <first.last@wwt.com>", "First Last <first.last@wwt.com>"]
+    from_field = fromField  # "First Last <first.last@wwt.com>"
+    to_field = ', '.join(toField)  # ["First Last <first.last@wwt.com>", "First Last <first.last@wwt.com>"]
     msg = MIMEMultipart("alternative")
-    msg["Subject"] = subject #string
+    msg["Subject"] = subject  # string
     msg["From"] = from_field
     msg["To"] = to_field
     text, html = formatMessage(message)
@@ -365,20 +398,21 @@ def email(fromField, toField, subject, message, IP, port="25"):
         server.quit()
         print("\nThe email was sent successfully!\n")
         return
-    except Exception: # except by itself catches keyboard interrupts and system exits
+    except Exception:  # except by itself catches keyboard interrupts and system exits
         print("\n!!!The email failed to send!!!\n")
         return
-    #need error checking to ensure tags are valid syntax
-    #need error checking to ensure tag is list
-    #need to handle exceptions
-    #look into handling "Msg" as potential list in order to split up bodies to allow for inline html tags
+    # need error checking to ensure tags are valid syntax
+    # need error checking to ensure tag is list
+    # need to handle exceptions
+    # look into handling "Msg" as potential list in order to split up bodies to allow for inline html tags
+
 
 def ping(hostname, n=3):
     """ standard Windows ping """
     output = subprocess.run(["ping", hostname, "-n", str(n)], stdout=subprocess.PIPE)
     result = output.stdout.decode()
 
-    #and then check the response...
+    # and then check the response...
     if 'Reply from ' + hostname + ': bytes=' in result:
         return True
     elif hostname.count('.') != 3:
@@ -387,11 +421,12 @@ def ping(hostname, n=3):
     else:
         return False
 
+
 def ZipToZone(zipcode, msgbox=False):
     """ returns time zone from a zip code """
     zipcode = str(zipcode)
     try:
-        req = requests.get('http://www.zip-info.com/cgi-local/zipsrch.exe?tz=tz&zip=' + zipcode +'&Go=Go')
+        req = requests.get('http://www.zip-info.com/cgi-local/zipsrch.exe?tz=tz&zip=' + zipcode + '&Go=Go')
         req.raise_for_status()
         ZipObj = bs4.BeautifulSoup(req.text, "lxml")
 
@@ -413,12 +448,14 @@ def ZipToZone(zipcode, msgbox=False):
             return
     return
 
+
 def eprint(Sentence):
     """ This is just to pretty up a text sentence """
     SentLeng = len(Sentence)
-    print("="* SentLeng *3)
+    print("=" * SentLeng * 3)
     print(("=" * SentLeng) + Sentence + ("=" * SentLeng))
-    print("="* SentLeng *3)
+    print("=" * SentLeng * 3)
+
 
 def ssh_connect(device_ip, username, password, screenprint=False):
     """ Creates a my standard used paramiko client and channel """
@@ -439,16 +476,18 @@ def ssh_connect(device_ip, username, password, screenprint=False):
 
     return client, channel
 
+
 def psend(command, channel):
     """ This just sends the command through the channel. Mainly so it can be used with pwait function. """
     channel.send(command)
 
+
 def pwait(waitstr, channel, tout=0, screenprint=False):
     """ paramiko wait with optional timeout """
-    startTime = int(time.time())
+    startTime = int(time())
     stroutput = ''
     while waitstr not in stroutput:
-        currentTime = int(time.time())
+        currentTime = int(time())
         if channel.recv_ready():
             try:
                 current = channel.recv(9999).decode()
@@ -470,17 +509,18 @@ def pwait(waitstr, channel, tout=0, screenprint=False):
                 return stroutput
     return stroutput
 
+
 def twait(phrase, tn, tout=-1, logging='off', rcontent=False, screenprint=False):
     """ telnetlib wait with optional timeout and optional logging"""
 
     # Adding code to allow lists for phrase
     finalcontent = ' '
 
-    #This is the time of the epoch
-    startTime = int(time.time())
+    # This is the time of the epoch
+    startTime = int(time())
     while True:
         # This is the current time
-        currentTime = int(time.time())
+        currentTime = int(time())
         if tout != -1:
 
             # This is the time since the start of this loop
@@ -488,9 +528,9 @@ def twait(phrase, tn, tout=-1, logging='off', rcontent=False, screenprint=False)
             # then exit with a return of 0
             if (currentTime - startTime) > tout:
                 if logging == 'on':
-                    #Adding the -e-e-> to differentiate from device output
+                    # Adding the -e-e-> to differentiate from device output
                     if screenprint:
-                        print('-e-e->It has been ' + str(tout) +  ' seconds. Timeout!')
+                        print('-e-e->It has been ' + str(tout) + ' seconds. Timeout!')
                 if not rcontent:
                     return 0
                 return 0, finalcontent
@@ -523,48 +563,50 @@ def twait(phrase, tn, tout=-1, logging='off', rcontent=False, screenprint=False)
                     return count, finalcontent
                 count += 1
 
+
 def tsend(phrase, tn):
     """ This performs a telnetlib send, and encodes to bytes, first """
-    #Sends the phrase that was passed to it as bytes
+    # Sends the phrase that was passed to it as bytes
     tn.write(phrase.encode())
+
 
 def get_secret(secretID, server=None, port=None, Username=None, Password=None):
     """
     This allows you to provide a secret ID and
     returns the password from a local database
     """
-    #pass in mongodb _id to retrieve associated secret
-    #pass in creds at function call - you can exclude password and enter it at prompt for extra security
-    if not server or not port or not Username or not Password: #if a param is not passed into function
-        #alternatively to passing args, put creds.csv within working dir that include either:
-        #http://url:,port,user,pass
-        #or
-        #http://url:,port,user - leaving off password will ask you to enter it at prompt
+    # pass in mongodb _id to retrieve associated secret
+    # pass in creds at function call - you can exclude password and enter it at prompt for extra security
+    if not server or not port or not Username or not Password:  # if a param is not passed into function
+        # alternatively to passing args, put creds.csv within working dir that include either:
+        # http://url:,port,user,pass
+        # or
+        # http://url:,port,user - leaving off password will ask you to enter it at prompt
         if 'creds.csv' in os.listdir():
             f = open('./creds.csv', 'r')
             contents = f.readlines()[0].split(',')
-            if len(contents) >= 3: #will skip to prompt for input if creds.csv incorrectly formatted
+            if len(contents) >= 3:  # will skip to prompt for input if creds.csv incorrectly formatted
                 server = contents[0].replace('\n', '')
                 port = contents[1].replace('\n', '')
                 Username = contents[2].replace('\n', '')
                 if len(contents) == 4:
-                    Password = contents[3].replace('\n', '') #will pull password if it exists
+                    Password = contents[3].replace('\n', '')  # will pull password if it exists
             f.close()
-        if not server or not port or not Username: #if main 3 not passed or acquired via csv, enter at prompt
+        if not server or not port or not Username:  # if main 3 not passed or acquired via csv, enter at prompt
             server = input('Server address: ')
             port = input('Port number: ')
             Username = input('Username: ')
-        if not Password: #if password not passed or acquired via csv, enter at prompt - even if main 3 already specified
+        if not Password:  # if password not passed or acquired via csv, enter at prompt - even if main 3 already specified
             Password = getpass.getpass()
-    if server[-1] != ':': #will automatically append : if left off of end of server path
+    if server[-1] != ':':  # will automatically append : if left off of end of server path
         server += ':'
 
     creds = {'Username': Username, 'Password': Password}
     loginURL = server + port + '/api/login/'
 
-    #try except in case api is not accessible
+    # try except in case api is not accessible
     try:
-        #using creds to login/retrieve token
+        # using creds to login/retrieve token
         tokenRes = requests.post(url=loginURL, json=creds)
     except Exception:
         print('Unable to access API')
@@ -572,30 +614,32 @@ def get_secret(secretID, server=None, port=None, Username=None, Password=None):
 
     tokenJSON = tokenRes.json()
 
-    #checking to see if creds are valid
+    # checking to see if creds are valid
     if 'token' not in tokenJSON:
         print('Invalid login credentials!')
         return
 
     token = tokenJSON['token']
 
-    #using provided
+    # using provided
     secretsURL = server + port + '/api/secrets/' + secretID
 
-    #using token to retrieve secret by _id
+    # using token to retrieve secret by _id
     secretRes = requests.get(url=secretsURL, headers={'Authorization': token})
     secretJSON = secretRes.json()
 
-    #checking to see if valid _id was provided
+    # checking to see if valid _id was provided
     if 'Secret' not in secretJSON:
         print('Invalid secret _id has been provided')
         return
 
     secret = secretJSON["Secret"]
-    return secret #returning secret as string
+    return secret  # returning secret as string
+
 
 def restful():
     pass
+
 
 def filenames(parentdir, extensions=None, flength='short'):
     """
