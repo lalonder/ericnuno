@@ -5,7 +5,7 @@ ericnuno.egg-info/PKG-INFO
 ericnuno.egg-info/requires.txt
 ericnuno.egg-info/SOURCES.txt
 ericnuno.egg-info/top_level.txt
-.idea/
-.vscode/
-ericnuno/.ipynb_checkpoints
-ericnuno/.ipynb_checkpoints/*
+/.vscode
+/.idea
+/ericnuno/.ipynb_checkpoints
+/ericnuno/.ipynb_checkpoints/*

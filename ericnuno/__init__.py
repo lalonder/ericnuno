@@ -31,7 +31,7 @@ class rest:
         'supermicro': ("ADMIN", "ADMIN")
     }
 
-    def __init__(self, uri: str, oem: str, header: str, username=None, password=None):
+    def __init__(self, uri: str, header: str, oem=None, username=None, password=None):
         # Variable assignment
         self.uri = uri
         self.verify = True
@@ -55,7 +55,7 @@ class rest:
     def __str__(self) -> str:
         return 'URI: {0.uri!s} Username: {0.username!s} Password: {0.password!s} Headers: {0.header!s}'.format(self)
 
-    # Changed 'yes' and 'no' values to True and False. Booleans are better equipped for a switch-like parameter
+
     def get(self, pretty=False):
         if self.verify:
             response = requests.get(self.uri, headers=self.header, verify=self.verify, auth=(self.username, self.password))
@@ -64,6 +64,7 @@ class rest:
 
         return self.json_translate(response, pretty)
 
+
     def post(self, body, pretty=False):
         if self.verify:
             response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify, auth=(self.username, self.password))
@@ -71,6 +72,7 @@ class rest:
             response = requests.post(self.uri, headers=self.header, data=body, verify=self.verify)
 
         return self.json_translate(response, pretty)
+
 
     @staticmethod
     def verify_uri(uri: str):
@@ -84,7 +86,7 @@ class rest:
 
 
     @staticmethod
-    def json_translate(response: requests.Response, pretty):
+    def json_translate(response: requests.Response, pretty: bool):
 
         # Turn the response into readable data using JSON module
         try:
@@ -102,14 +104,16 @@ class rest:
     def add_default_login(cls, oem: str, username: str, password: str, quiet=True):
         if oem not in cls.def_dict.keys():
             cls.def_dict.update({oem : (username, password)})
-
         if not quiet:
-            return 'Success!'
+            print('Success!')
+        return
 
     @classmethod
-    def update_default_login(cls, oem: str, username: str, password: str):
+    def update_default_login(cls, oem: str, username: str, password: str, quiet=True):
         if oem in cls.def_dict.keys():
             cls.def_dict[oem] = (username, password)
+        if not quiet:
+            print('Success!')
         return
 
 class COM_Manager:
@@ -123,7 +127,8 @@ class COM_Manager:
     def find_active_COMs(self):
         COMs = []
         print('Checking for available COM ports')
-        for port in [tuple(p) for p in list(serial.tools.list_ports.comports())]:
+        comports_list = [tuple(p) for p in list(serial.tools.list_ports.comports())]
+        for port in comports_list:
             for index in port:
                 if 'USB' in index and 'Serial' in index:
                     COMs.append(port[0])
